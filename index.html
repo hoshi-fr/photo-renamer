@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>写真一括リネーム</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #111; font-family: 'Helvetica Neue', Arial, sans-serif; }
+.wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 3rem; }
+.header { display: flex; align-items: center; gap: 14px; margin-bottom: 1.75rem; }
+.header-icon { width: 44px; height: 44px; background: #2563eb; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.header-icon svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+.header p { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.panel { background: #1e1e2e; border-radius: 14px; width: 100%; max-width: 520px; padding: 1.5rem; margin-bottom: 1rem; }
+.sec-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #6b7280; text-transform: uppercase; margin-bottom: 12px; }
+.flabel { font-size: 11px; color: #9ca3af; margin-bottom: 5px; display: block; }
+input[type=text], input[type=number], select {
+  width: 100%; background: #2a2a3e; border: 1px solid #3a3a52; border-radius: 8px;
+  color: #e5e7eb; font-size: 13px; padding: 9px 12px; outline: none;
+  font-family: inherit; transition: border-color .15s;
+}
+input[type=text]:focus, input[type=number]:focus, select:focus { border-color: #3b82f6; }
+select { cursor: pointer; }
+select option { background: #2a2a3e; }
+input[type=range] { width: 100%; accent-color: #3b82f6; margin-top: 6px; }
+input[type=checkbox] { display: none; }
+.g1 { margin-bottom: 10px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 10px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
+.preview-box { background: #2a2a3e; border: 1px solid #3a3a52; border-radius: 8px; padding: 9px 12px; height: 100%; }
+.preview-lbl { font-size: 10px; color: #6b7280; margin-bottom: 3px; }
+.preview-val { font-size: 13px; font-weight: 600; color: #60a5fa; word-break: break-all; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.toggle { position: relative; width: 38px; height: 20px; display: inline-block; cursor: pointer; }
+.toggle-track { position: absolute; inset: 0; background: #3a3a52; border-radius: 20px; transition: .2s; }
+.toggle-thumb { position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.toggle.on .toggle-track { background: #3b82f6; }
+.toggle.on .toggle-thumb { left: 21px; }
+.resize-fields { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 8px; }
+.resize-note { font-size: 11px; color: #6b7280; line-height: 1.5; }
+.drop { border: 1.5px dashed #3a3a52; border-radius: 10px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all .2s; background: #2a2a3e; }
+.drop:hover, .drop.drag { border-color: #3b82f6; background: #1e3a5f; }
+.drop-title { font-size: 13px; font-weight: 600; color: #9ca3af; }
+.drop-sub { font-size: 11px; color: #6b7280; }
+.list-header { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 6px; }
+.list-count { font-size: 11px; color: #6b7280; }
+.clear-btn { font-size: 11px; color: #ef4444; background: none; border: none; cursor: pointer; }
+.file-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.file-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #2a2a3e; border-radius: 8px; cursor: grab; border: 1px solid transparent; font-size: 12px; transition: background .1s; user-select: none; }
+.file-row.over { background: #1e3a5f; border-color: #3b82f6; }
+.drag-handle { color: #4b5563; font-size: 11px; flex-shrink: 0; }
+.row-num { color: #6b7280; font-size: 11px; min-width: 16px; text-align: right; flex-shrink: 0; }
+.row-badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #1e3a5f; color: #60a5fa; font-weight: 700; flex-shrink: 0; }
+.row-badge.other { background: #2a2a3e; color: #6b7280; border: 1px solid #3a3a52; }
+.row-old { color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-arr { color: #3b82f6; flex-shrink: 0; font-size: 11px; }
+.row-new { color: #e5e7eb; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-del { background: none; border: none; cursor: pointer; color: #4b5563; font-size: 14px; flex-shrink: 0; padding: 0 2px; line-height: 1; }
+.row-del:hover { color: #ef4444; }
+.divider { height: 1px; background: #2a2a3e; margin: 14px 0; }
+.actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn-main { flex: 1; padding: 11px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: #2563eb; color: #fff; transition: opacity .15s; }
+.btn-main:hover:not(:disabled) { opacity: .85; }
+.btn-main:disabled { opacity: .4; cursor: default; }
+.btn-sub { flex: 1; padding: 11px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #3a3a52; background: #2a2a3e; color: #9ca3af; transition: all .15s; }
+.btn-sub:hover:not(:disabled) { color: #e5e7eb; border-color: #6b7280; }
+.btn-sub:disabled { opacity: .4; cursor: default; }
+.bar { height: 3px; background: #2a2a3e; border-radius: 2px; margin-top: 12px; overflow: hidden; display: none; }
+.bar-fill { height: 100%; background: #2563eb; width: 0%; transition: width .2s; }
+.msg { font-size: 12px; margin-top: 8px; display: none; }
+.msg.ok { color: #34d399; }
+.msg.err { color: #f87171; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    </div>
+    <div>
+      <h1>写真一括リネーム</h1>
+      <p>ファイルをリネーム・リサイズして一括ダウンロード</p>
+    </div>
+  </div>
+
+  <!-- リネーム設定 -->
+  <div class="panel">
+    <div class="sec-label">リネーム設定</div>
+    <div class="g1">
+      <span class="flabel">追加文字・前（任意）</span>
+      <input type="text" id="prefixPre" placeholder="例: 2026" />
+    </div>
+    <div class="g4">
+      <div><span class="flabel">プレフィックス</span><input type="text" id="prefix" placeholder="例: photo" /></div>
+      <div><span class="flabel">区切り文字</span>
+        <select id="sep"><option value="">なし</option><option value="_">_</option><option value="-">-</option></select>
+      </div>
+      <div><span class="flabel">桁数</span>
+        <select id="digits"><option value="1">1桁</option><option value="2">2桁</option><option value="3" selected>3桁</option><option value="4">4桁</option></select>
+      </div>
+      <div><span class="flabel">開始番号</span><input type="text" id="start" value="1" /></div>
+    </div>
+    <div class="g3">
+      <div><span class="flabel">追加文字・後（任意）</span><input type="text" id="suffix" placeholder="例: tokyo" /></div>
+      <div><span class="flabel">拡張子</span>
+        <select id="extcase"><option value="keep">変更しない</option><option value="lower">小文字</option><option value="upper">大文字</option></select>
+      </div>
+      <div>
+        <div class="preview-box">
+          <div class="preview-lbl">プレビュー例</div>
+          <div class="preview-val" id="preview">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- リサイズ設定 -->
+  <div class="panel">
+    <div class="toggle-row">
+      <span class="sec-label" style="margin-bottom:0">リサイズ設定</span>
+      <div class="toggle" id="resizeToggle" onclick="toggleResize()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </div>
+    </div>
+    <div id="resizeFields" class="hidden">
+      <div class="resize-fields">
+        <div><span class="flabel">幅 (px)</span><input type="text" id="resizeW" value="640" /></div>
+        <div><span class="flabel">高さ (px)</span><input type="text" id="resizeH" value="480" /></div>
+        <div>
+          <span class="flabel">品質 <span id="qualityVal">75</span>%</span>
+          <input type="range" id="quality" min="1" max="100" value="75" oninput="document.getElementById('qualityVal').textContent=this.value" />
+        </div>
+      </div>
+      <div class="resize-note">片方のみ指定するとアスペクト比を維持。両方指定した場合は収まる範囲でリサイズします。</div>
+    </div>
+  </div>
+
+  <!-- ファイル -->
+  <div class="panel">
+    <div class="sec-label">ファイル</div>
+    <div class="drop" id="drop" onclick="document.getElementById('fi').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+      <div class="drop-title">クリックまたはドラッグ&amp;ドロップで追加</div>
+      <div class="drop-sub">複数ファイル対応 · 何度でも追記可能</div>
+      <input type="file" id="fi" multiple accept="image/*" style="display:none" onchange="addFiles(this.files)" />
+    </div>
+    <div id="fileSection" class="hidden">
+      <div class="list-header">
+        <span class="list-count" id="listCount">0枚</span>
+        <button class="clear-btn" onclick="clearAll()">すべて削除</button>
+      </div>
+      <div class="file-list" id="fileList"></div>
+      <div class="divider"></div>
+      <div class="actions">
+        <button class="btn-main" id="btnZip" onclick="downloadZip()">ZIPでダウンロード</button>
+        <button class="btn-sub" id="btnEach" onclick="downloadEach()">1枚ずつ</button>
+      </div>
+      <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let files = [];
+let dragSrcIdx = null;
+let resizeOn = false;
+let idSeq = 0;
+
+// --- update preview ---
+function updatePreview() {
+  const pre = v('prefixPre') + v('prefix') + v('sep') + pad(parseInt(v('start')) || 0, parseInt(v('digits'))) + v('suffix') + applyExt('.jpg', v('extcase'));
+  document.getElementById('preview').textContent = pre || '-';
+  renderList();
+}
+['prefixPre','prefix','sep','digits','start','suffix','extcase'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) { el.addEventListener('input', updatePreview); el.addEventListener('change', updatePreview); }
+});
+
+function v(id) { return document.getElementById(id).value; }
+function pad(n, d) { return d === 1 ? String(n) : String(n).padStart(d, '0'); }
+function applyExt(ext, mode) {
+  if (mode === 'lower') return ext.toLowerCase();
+  if (mode === 'upper') return ext.toUpperCase();
+  return ext;
+}
+function getNewName(i, file) {
+  const dotIdx = file.name.lastIndexOf('.');
+  const ext = dotIdx >= 0 ? file.name.slice(dotIdx) : '';
+  return v('prefixPre') + v('prefix') + v('sep') + pad((parseInt(v('start')) || 0) + i, parseInt(v('digits'))) + v('suffix') + applyExt(ext, v('extcase'));
+}
+
+// --- toggle resize ---
+function toggleResize() {
+  resizeOn = !resizeOn;
+  document.getElementById('resizeToggle').classList.toggle('on', resizeOn);
+  document.getElementById('resizeFields').classList.toggle('hidden', !resizeOn);
+}
+
+// --- drag & drop zone ---
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop').classList.add('drag'); }
+function onDragLeave() { document.getElementById('drop').classList.remove('drag'); }
+function onDrop(e) { e.preventDefault(); document.getElementById('drop').classList.remove('drag'); addFiles(e.dataTransfer.files); }
+
+function addFiles(newFiles) {
+  const arr = Array.from(newFiles);
+  const empty = arr.filter(f => f.size === 0);
+  arr.forEach(f => files.push({ id: ++idSeq, file: f }));
+  document.getElementById('fileSection').classList.remove('hidden');
+  renderList();
+  if (empty.length) showMsg('※ ' + empty.map(f => f.name).join(', ') + ' はサイズが0のためスキップされます', true);
+  else hideMsg();
+}
+
+function clearAll() {
+  files = [];
+  document.getElementById('fileSection').classList.add('hidden');
+  document.getElementById('fi').value = '';
+  hideMsg(); setProgress(0, false);
+}
+
+function renderList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = '';
+  files.forEach((item, i) => {
+    const isImg = item.file.type.startsWith('image/');
+    const row = document.createElement('div');
+    row.className = 'file-row';
+    row.draggable = true;
+    row.dataset.idx = i;
+    row.innerHTML =
+      '<span class="drag-handle">||</span>' +
+      '<span class="row-num">' + (i+1) + '</span>' +
+      '<span class="row-badge' + (isImg ? '' : ' other') + '">' + (isImg ? 'IMG' : 'FILE') + '</span>' +
+      '<span class="row-old" title="' + item.file.name + '">' + item.file.name + '</span>' +
+      '<span class="row-arr">&#8594;</span>' +
+      '<span class="row-new">' + getNewName(i, item.file) + '</span>' +
+      '<button class="row-del" data-id="' + item.id + '">x</button>';
+    row.addEventListener('dragstart', e => { dragSrcIdx = i; e.dataTransfer.effectAllowed = 'move'; });
+    row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('over'); });
+    row.addEventListener('dragleave', () => row.classList.remove('over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault(); row.classList.remove('over');
+      if (dragSrcIdx === null || dragSrcIdx === i) return;
+      const moved = files.splice(dragSrcIdx, 1)[0];
+      files.splice(i, 0, moved);
+      dragSrcIdx = null;
+      renderList();
+    });
+    row.addEventListener('dragend', () => { dragSrcIdx = null; document.querySelectorAll('.file-row').forEach(r => r.classList.remove('over')); });
+    row.querySelector('.row-del').addEventListener('click', () => {
+      files = files.filter(f => f.id !== item.id);
+      if (!files.length) document.getElementById('fileSection').classList.add('hidden');
+      renderList();
+    });
+    list.appendChild(row);
+  });
+  document.getElementById('listCount').textContent = files.length + '枚　ドラッグで並び替え可能';
+}
+
+// --- file reading ---
+function readAsDataURL(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = () => rej(new Error('読み込み失敗: ' + file.name));
+    r.readAsDataURL(file);
+  });
+}
+async function fileToUint8(file) {
+  try { return new Uint8Array(await file.arrayBuffer()); } catch(e) {}
+  const ab = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = () => rej(new Error());
+    r.readAsArrayBuffer(file);
+  });
+  return new Uint8Array(ab);
+}
+async function resizeImage(file) {
+  const maxW = parseInt(document.getElementById('resizeW').value) || null;
+  const maxH = parseInt(document.getElementById('resizeH').value) || null;
+  const q = parseInt(document.getElementById('quality').value) / 100;
+  const dataURL = await readAsDataURL(file);
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (maxW && maxH) { const r = Math.min(maxW/w, maxH/h); w = Math.round(w*r); h = Math.round(h*r); }
+      else if (maxW) { h = Math.round(h*maxW/w); w = maxW; }
+      else if (maxH) { w = Math.round(w*maxH/h); h = maxH; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', q));
+    };
+    img.onerror = rej;
+    img.src = dataURL;
+  });
+}
+async function dataURLtoUint8(dataURL) {
+  const bin = atob(dataURL.split(',')[1]);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+async function getFileData(file) {
+  if (resizeOn && file.type.startsWith('image/')) {
+    const dataURL = await resizeImage(file);
+    return { dataURL, u8: await dataURLtoUint8(dataURL) };
+  }
+  const u8 = await fileToUint8(file);
+  const dataURL = await readAsDataURL(file);
+  return { dataURL, u8 };
+}
+
+// --- ZIP builder ---
+const crcTable = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[i] = c; }
+  return t;
+})();
+function crc32(data) { let c = 0xffffffff; for (let i = 0; i < data.length; i++) c = crcTable[(c ^ data[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function u16(v) { return [v & 0xff, (v >> 8) & 0xff]; }
+function u32(v) { return [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]; }
+async function buildZip(entries) {
+  const enc = new TextEncoder(), offsets = [], parts = [];
+  let offset = 0;
+  for (const { name, data } of entries) {
+    const nb = enc.encode(name), crc = crc32(data), sz = data.length;
+    const local = new Uint8Array([0x50,0x4b,0x03,0x04,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(nb.length),...u16(0),...nb]);
+    offsets.push(offset); parts.push(local); parts.push(data); offset += local.length + data.length;
+  }
+  const cdStart = offset;
+  for (let i = 0; i < entries.length; i++) {
+    const { name, data } = entries[i], nb = enc.encode(name), crc = crc32(data), sz = data.length;
+    parts.push(new Uint8Array([0x50,0x4b,0x01,0x02,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offsets[i]),...nb]));
+    offset += 46 + nb.length;
+  }
+  const cdSize = offset - cdStart;
+  parts.push(new Uint8Array([0x50,0x4b,0x05,0x06,...u16(0),...u16(0),...u16(entries.length),...u16(entries.length),...u32(cdSize),...u32(cdStart),...u16(0)]));
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Uint8Array(total); let pos = 0;
+  for (const p of parts) { out.set(p, pos); pos += p.length; }
+  return out;
+}
+function uint8ToBase64(u8) {
+  const CHUNK = 8192; let bin = '';
+  for (let i = 0; i < u8.length; i += CHUNK) bin += String.fromCharCode(...u8.subarray(i, i + CHUNK));
+  return btoa(bin);
+}
+function triggerDownload(dataURL, filename) {
+  const a = document.createElement('a');
+  a.href = dataURL; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// --- UI helpers ---
+function setBusy(on) {
+  document.getElementById('btnZip').disabled = on;
+  document.getElementById('btnEach').disabled = on;
+}
+function setProgress(pct, visible) {
+  const bar = document.getElementById('bar');
+  bar.style.display = visible ? '' : 'none';
+  document.getElementById('barFill').style.width = pct + '%';
+}
+function showMsg(text, isErr) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (isErr ? 'err' : 'ok');
+  el.style.display = '';
+}
+function hideMsg() { document.getElementById('msg').style.display = 'none'; }
+
+// --- download ---
+async function downloadZip() {
+  setBusy(true); setProgress(0, true); showMsg('処理中...', false);
+  try {
+    const entries = [], skipped = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i].file;
+      if (f.size === 0) { skipped.push(f.name); continue; }
+      try { const { u8 } = await getFileData(f); entries.push({ name: getNewName(i, f), data: u8 }); }
+      catch(e) { skipped.push(f.name); }
+      setProgress(Math.round((i+1)/files.length*75), true);
+    }
+    if (!entries.length) { showMsg('有効なファイルがありません', true); setBusy(false); return; }
+    showMsg('ZIP生成中...', false);
+    const zip = await buildZip(entries);
+    setProgress(95, true);
+    triggerDownload('data:application/zip;base64,' + uint8ToBase64(zip), 'renamed_photos.zip');
+    setProgress(100, true);
+    showMsg(entries.length + '枚をZIPにまとめました！' + (skipped.length ? '（スキップ: ' + skipped.join(', ') + '）' : ''), skipped.length > 0);
+  } catch(e) { showMsg('エラー: ' + e.message, true); setProgress(0, false); }
+  setBusy(false);
+}
+async function downloadEach() {
+  setBusy(true); setProgress(0, true); hideMsg();
+  const skipped = [];
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i].file;
+      if (f.size === 0) { skipped.push(f.name); continue; }
+      try { const { dataURL } = await getFileData(f); triggerDownload(dataURL, getNewName(i, f)); }
+      catch(e) { skipped.push(f.name); }
+      setProgress(Math.round((i+1)/files.length*100), true);
+      await new Promise(r => setTimeout(r, 300));
+    }
+    showMsg((files.length - skipped.length) + '枚のダウンロードを開始しました！' + (skipped.length ? '（スキップ: ' + skipped.join(', ') + '）' : ''), skipped.length > 0);
+  } catch(e) { showMsg('エラー: ' + e.message, true); }
+  setBusy(false);
+}
+
+updatePreview();
+</script>
+</body>
+</html>
